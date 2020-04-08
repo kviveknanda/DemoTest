@@ -11,90 +11,57 @@ import RealmSwift
 
 class ViewController: UIViewController {
     
-    var searchBar = UISearchBar()
-    var imageView = UIImageView()
-    var historyLabel = UILabel()
-    var imageLabel = UILabel()
-    var activityIndicator = UIActivityIndicatorView()
-    var imageViewHeight: NSLayoutConstraint?
-    
+    // MARK: Properties
+    let customView = View()
     var unsplashManager = UnsplashManager()
-    
-    // MARK: Realm
     let realm = try! Realm()
     var realmArray: Results<CacheData>?
 
+    // MARK: - loadView
+    override func loadView() {
+        self.view = customView
+    }
+    
     // MARK: - viewDidLoad
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // MARK: Constraint
-        constraints()
-        
         // MARK: Delegates
-        searchBar.delegate = self
+        customView.searchBar.delegate = self
         unsplashManager.delegate = self
         
-        // MARK: UI
-        searchBarPrepare()
-        labelTextPrepare(for: historyLabel, text: "Your Last Search result: ")
-
-        if realmArray?.count == nil {
-            labelTextPrepare(for: imageLabel, text: "Empty")
-        }
+        // MARK: Add Search Bar
+        self.navigationItem.titleView = customView.searchBar
+        
+        // MARK: UI Text
+        textUI()
         
         // MARK: Realm
         loadHistory()
         loadLastSearch()
     }
     
-    // MARK: - viewWillAppear
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
+    // MARK: - Methods
+    func textUI() {
+        customView.searchBar.placeholder = "Find the best image for you..."
+        customView.labelTextPrepare(for: customView.historyLabel, text: "Your Last Search result:")
         
-        self.view.backgroundColor = .systemBackground
-        
-    }
-    
-    // MARK: - UI Prepare
-    func searchBarPrepare() {
-        navigationItem.titleView = searchBar
-        searchBar.sizeToFit()
-        searchBar.placeholder = "Find the best image for you..."
-    }
-    
-    func labelTextPrepare(for label: UILabel, text: String) {
-        label.text = text
-        label.adjustsFontSizeToFitWidth = true
-    }
-    
-    // MARK: - Load Image Methods
-    func prepareForLoadingImage(image: UIImage?) {
-        guard let imageSize = image?.size, imageSize.height != 0 else { return }
-        
-        let maxHeigh = self.view.bounds.height * 0.7
-        let aspectRatio = imageSize.width / imageSize.height
-        let height = self.view.bounds.width / aspectRatio
-        
-        if height > maxHeigh {
-            self.imageViewHeight?.constant = maxHeigh
-        } else {
-            self.imageViewHeight?.constant = height
+        if realmArray?.count == nil {
+            customView.labelTextPrepare(for: customView.imageLabel, text: "Empty")
         }
-        
-        self.view.updateConstraints()
-        self.view.layoutIfNeeded()
     }
     
     func loadLastSearch() {
         guard let realmArray = realmArray else { return }
         guard realmArray.count > 0 else { return }
         guard let data = realmArray[0].imageCache else { return }
-        let image = UIImage(data: data)
-        self.imageView.image = image
-        self.imageLabel.text = realmArray[0].keyword
         
-        prepareForLoadingImage(image: image)
+        DispatchQueue.main.async {
+            self.customView.randomImage = UIImage(data: data)!
+            self.customView.imageView.image = self.customView.randomImage
+            self.customView.imageLabel.text = realmArray[0].keyword
+            self.customView.prepareForLoadingImage(image: self.customView.randomImage)
+        }
     }
     
     func loadImage(url: URL) {
@@ -104,24 +71,25 @@ class ViewController: UIViewController {
             
             guard let self = self, let image = data, error == nil else { return }
             DispatchQueue.main.async {
-                self.activityIndicator.stopAnimating()
-                let image = UIImage(data: image)
-                self.imageView.image = image
+                self.customView.activityIndicator.stopAnimating()
+                self.customView.randomImage = UIImage(data: image)!
+                self.customView.imageView.image = self.customView.randomImage
                 
                 self.realmArray = nil
                 self.clearRealm()
                 self.sendToRealm()
                 
-                self.prepareForLoadingImage(image: image)
+                self.customView.prepareForLoadingImage(image: self.customView.randomImage)
             }
         }
     }
+    
     // MARK: - Realm Methods
     func sendToRealm() {
         realmArray = nil
         let lastImage = CacheData()
         lastImage.imageCache = cacheData
-        lastImage.keyword = self.imageLabel.text
+        lastImage.keyword = customView.imageLabel.text
         self.save(data: lastImage)
     }
     
@@ -148,39 +116,6 @@ class ViewController: UIViewController {
     func loadHistory() {
         realmArray = realm.objects(CacheData.self)
     }
-    
-    // MARK: - Constraints
-    func constraints() {
-        self.view.addSubview(historyLabel)
-        self.view.addSubview(imageView)
-        self.view.addSubview(imageLabel)
-        self.view.addSubview(activityIndicator)
-        
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        historyLabel.translatesAutoresizingMaskIntoConstraints = false
-        imageLabel.translatesAutoresizingMaskIntoConstraints = false
-        activityIndicator.translatesAutoresizingMaskIntoConstraints = false
-        
-        historyLabel.topAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.topAnchor, constant: 15).isActive = true
-        historyLabel.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -15).isActive = true
-        historyLabel.centerXAnchor.constraint(equalTo: self.view.centerXAnchor, constant: 0).isActive = true
-        
-        imageView.topAnchor.constraint(equalTo: historyLabel.bottomAnchor, constant: 15).isActive = true
-        imageView.topAnchor.constraint(lessThanOrEqualTo: historyLabel.bottomAnchor, constant: 15).isActive = true
-        imageView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor, constant: 0).isActive = true
-        imageView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: 0).isActive = true
-        imageViewHeight = self.imageView.heightAnchor.constraint(equalToConstant: 0)
-        imageViewHeight?.isActive = true
-        imageView.contentMode = .scaleAspectFit
-        
-        imageLabel.topAnchor.constraint(equalTo: self.imageView.bottomAnchor, constant: 15).isActive = true
-        imageLabel.centerXAnchor.constraint(equalTo: self.view.centerXAnchor, constant: 0).isActive = true
-        imageLabel.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -15).isActive = true
-        imageLabel.textAlignment = .center
-    
-        activityIndicator.topAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.topAnchor, constant: 15).isActive = true
-        activityIndicator.rightAnchor.constraint(equalTo: self.view.rightAnchor, constant: -15).isActive = true
-    }
 }
 
 // MARK: - UISearchBarDelegate
@@ -189,18 +124,14 @@ extension ViewController: UISearchBarDelegate {
         guard let keyword = searchBar.text else { return }
         if !CheckInternet.connection() {
             
-            let alert = UIAlertController(title: "Error", message: "Lost internet connection", preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "OK", style: .cancel, handler: { _ in
-                self.searchBar.becomeFirstResponder()
-            }))
-            self.present(alert, animated: true, completion: nil)
+            customView.alert(title: "Error", message: "Lost internet connection", viewController: self)
             return
         }
         unsplashManager.searchImage(keyWord: keyword)
-        self.imageLabel.text = searchBar.text
+        customView.imageLabel.text = searchBar.text
         searchBar.showsCancelButton = false
         searchBar.resignFirstResponder()
-        activityIndicator.startAnimating()
+        customView.activityIndicator.startAnimating()
     }
     
     func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
@@ -222,15 +153,14 @@ extension ViewController: UnsplashManagerDelegate {
     
     func nothingFound() {
         DispatchQueue.main.async {
-            let alert = UIAlertController(title: "Error", message: "Nothing found. Try another keyword", preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "OK", style: .cancel, handler: { _ in
-                self.searchBar.becomeFirstResponder()
-            }))
-            self.present(alert, animated: true, completion: nil)
+            self.customView.alert(title: "Error", message: "Nothing found. Try another keyword", viewController: self)
+            self.customView.activityIndicator.stopAnimating()
         }
     }
     
     func didFailWithError(error: Error) {
+        self.customView.alert(title: "Error", message: "Couldn't get image from Unsplash", viewController: self)
+        self.customView.activityIndicator.stopAnimating()
         print(error)
     }
 }
