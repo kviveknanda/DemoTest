@@ -17,5 +17,5 @@ struct UnsplashResults: Codable {
 }
 
 struct Urls: Codable {
-    let raw: String
+    let regular: String
 }

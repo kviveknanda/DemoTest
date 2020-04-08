@@ -57,7 +57,8 @@ class ViewController: UIViewController {
         guard let data = realmArray[0].imageCache else { return }
         
         DispatchQueue.main.async {
-            self.customView.randomImage = UIImage(data: data)!
+            guard let imageData = UIImage(data: data) else { return }
+            self.customView.randomImage = imageData
             self.customView.imageView.image = self.customView.randomImage
             self.customView.imageLabel.text = realmArray[0].keyword
             self.customView.prepareForLoadingImage(image: self.customView.randomImage)
@@ -72,14 +73,18 @@ class ViewController: UIViewController {
             guard let self = self, let image = data, error == nil else { return }
             DispatchQueue.main.async {
                 self.customView.activityIndicator.stopAnimating()
-                self.customView.randomImage = UIImage(data: image)!
-                self.customView.imageView.image = self.customView.randomImage
-                
-                self.realmArray = nil
-                self.clearRealm()
-                self.sendToRealm()
-                
-                self.customView.prepareForLoadingImage(image: self.customView.randomImage)
+                if let imageData = UIImage(data: image) {
+                    self.customView.randomImage = imageData
+                    self.customView.imageView.image = self.customView.randomImage
+                    
+                    self.realmArray = nil
+                    self.clearRealm()
+                    self.sendToRealm()
+                    
+                    self.customView.prepareForLoadingImage(image: self.customView.randomImage)
+                } else {
+                    self.customView.alert(title: "Error", message: "Couldn't show image", viewController: self)
+                }
             }
         }
     }
@@ -159,8 +164,10 @@ extension ViewController: UnsplashManagerDelegate {
     }
     
     func didFailWithError(error: Error) {
-        self.customView.alert(title: "Error", message: "Couldn't get image from Unsplash", viewController: self)
-        self.customView.activityIndicator.stopAnimating()
+        DispatchQueue.main.async {
+            self.customView.alert(title: "Error", message: "Couldn't get image from Unsplash", viewController: self)
+            self.customView.activityIndicator.stopAnimating()
+        }
         print(error)
     }
 }

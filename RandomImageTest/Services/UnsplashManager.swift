@@ -66,7 +66,7 @@ struct UnsplashManager {
             }
             
             let randomInt = Int.random(in: 0..<decodeData.results.count)
-            let stringUrl = decodeData.results[randomInt].urls.raw
+            let stringUrl = decodeData.results[randomInt].urls.regular
             let image = ImageModel(imageUrl: stringUrl)
             
             return image
