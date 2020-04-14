@@ -23,7 +23,8 @@ struct UnsplashManager {
     let param = "&query="
     
     func searchImage(keyWord:String) {
-        let urlString = "\(unsplashURL)client_id=\(apiKey)\(param)\(keyWord)"
+        let keywordWithConvertedSpaces = keyWord.replacingOccurrences(of: " ", with: "%20")
+        let urlString = "\(unsplashURL)client_id=\(apiKey)\(param)\(keywordWithConvertedSpaces)"
         performRequest(urlString)
     }
     
